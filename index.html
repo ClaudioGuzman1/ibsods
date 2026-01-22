@@ -537,6 +537,8 @@
         agregarPie(i);
       }
       pdf.save('ODS_' + (order.numeroTicket || order.id) + '.pdf');
+      const blobUrl = pdf.output('bloburl');
+      window.open(blobUrl, '_blank');
     }
     // ==================== RENDER ====================
     function render() {
@@ -938,4 +940,5 @@
 </body>
 
 </html>
+
 
