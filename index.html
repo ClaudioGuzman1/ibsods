@@ -586,7 +586,7 @@
                         <tr style="border-top: 1px solid #e5e7eb;">
                           <td style="padding: 12px;">${order.numeroTicket || '-'}</td>
                           <td style="padding: 12px;">${order.fechaAtencion || '-'}</td>
-                          <td style="padding: 12px;">${order.cliente || '-'} \ ${order.nombreTerminal || '-'}</td>
+                          <td style="padding: 12px;">${order.cliente || '-'} @ ${order.nombreTerminal || ''}</td>
                           <td style="padding: 12px; text-align: right;">
                             <button onclick="editOrder(${JSON.stringify(order).replace(/"/g, '&quot;')})" class="btn" style="background: #3b82f6; color: white; margin: 0 4px;">✏️</button>
                             <button onclick="duplicateOrder(${order.id})" class="btn btn-success" style="margin: 0 4px;">📋</button>
@@ -938,6 +938,7 @@
 </body>
 
 </html>
+
 
 
 
