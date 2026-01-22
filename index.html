@@ -578,6 +578,7 @@
                         <th style="padding: 12px; text-align: left; font-weight: 600; font-size: 14px;">#️⃣</th>
                         <th style="padding: 12px; text-align: left; font-weight: 600; font-size: 14px;">🗓️</th>
                         <th style="padding: 12px; text-align: left; font-weight: 600; font-size: 14px;">👨🏾‍💼</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600; font-size: 14px;">🖥️</th>
                         <th style="padding: 12px; text-align: left; font-weight: 600; font-size: 14px;">👷🏾‍♂️</th>
                         <th style="padding: 12px; text-align: right; font-weight: 600; font-size: 14px;">🛠️</th>
                       </tr>
@@ -588,6 +589,7 @@
                           <td style="padding: 12px;">${order.numeroTicket || '-'}</td>
                           <td style="padding: 12px;">${order.fechaAtencion || '-'}</td>
                           <td style="padding: 12px;">${order.cliente || '-'}</td>
+                          <td style="padding: 12px;">${order.nombreTerminal || '-'}</td>
                           <td style="padding: 12px;">${order.ingeniero || '-'}</td>
                           <td style="padding: 12px; text-align: right;">
                             <button onclick="editOrder(${JSON.stringify(order).replace(/"/g, '&quot;')})" class="btn" style="background: #3b82f6; color: white; margin: 0 4px;">✏️</button>
@@ -940,5 +942,6 @@
 </body>
 
 </html>
+
 
 
