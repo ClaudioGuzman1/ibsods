@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ODS Local</title>
+  <title>ODS Local + ER</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="styles.css">
   <!--
@@ -733,31 +733,36 @@
       }
       if (appState.tab === 'firmas') {
         return `
-              <div style="display: flex; flex-direction: column; gap: 32px;">
-                <div>
-                  <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Firma del Ingeniero</h3>
-                  <div class="signature-canvas-container">
-                    <canvas id="signatureCanvasIngeniero" width="500" height="250" class="signature-canvas"></canvas>
-                  </div>
-                  <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button onclick="clearSignature('ingeniero')" class="btn btn-secondary">Limpiar</button>
-                    <button onclick="saveSignature('ingeniero')" class="btn btn-primary">Guardar Firma</button>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Firma del Cliente</h3>
-                  <div class="signature-canvas-container">
-                    <canvas id="signatureCanvasCliente" width="500" height="250" class="signature-canvas"></canvas>
-                  </div>
-                  <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button onclick="clearSignature('cliente')" class="btn btn-secondary">Limpiar</button>
-                    <button onclick="saveSignature('cliente')" class="btn btn-primary">Guardar Firma</button>
-                  </div>
-                </div>
+          <div style="display: flex; flex-direction: column; gap: 32px;">
+            <div>
+              <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Firma del Ingeniero</h3>
+              <div class="signature-canvas-container">
+                <canvas id="signatureCanvasIngeniero" width="500" height="250" class="signature-canvas"></canvas>
               </div>
-            `;
+              <input type="file" id="fileSignatureIngeniero" accept="image/*" style="display: none;" onchange="loadSignatureFromFile('ingeniero', this)" />
+              <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <button onclick="clearSignature('ingeniero')" class="btn btn-secondary">Limpiar</button>
+                <button onclick="saveSignature('ingeniero')" class="btn btn-primary">Guardar Firma</button>
+                <button onclick="document.getElementById('fileSignatureIngeniero').click()" class="btn" style="background: #8b5cf6; color: white;">📁 Cargar Imagen</button>
+              </div>
+            </div>
+            
+            <div>
+              <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Firma del Cliente</h3>
+              <div class="signature-canvas-container">
+                <canvas id="signatureCanvasCliente" width="500" height="250" class="signature-canvas"></canvas>
+              </div>
+              <input type="file" id="fileSignatureCliente" accept="image/*" style="display: none;" onchange="loadSignatureFromFile('cliente', this)" />
+              <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <button onclick="clearSignature('cliente')" class="btn btn-secondary">Limpiar</button>
+                <button onclick="saveSignature('cliente')" class="btn btn-primary">Guardar Firma</button>
+                <button onclick="document.getElementById('fileSignatureCliente').click()" class="btn" style="background: #8b5cf6; color: white;">📁 Cargar Imagen</button>
+              </div>
+            </div>
+          </div>
+        `;
       }
+      
       return '';
     }
     function renderImageSection(category, label) {
@@ -924,6 +929,57 @@
       appState.currentOrder[field] = dataUrl;
       alert('Firma ' + (tipo === 'ingeniero' ? 'del ingeniero' : 'del cliente') + ' guardada');
     }
+    function loadSignatureFromFile(tipo, input) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = tipo === 'ingeniero' ? canvasIngeniero : canvasCliente;
+          const ctx = tipo === 'ingeniero' ? ctxIngeniero : ctxCliente;
+          
+          // Limpiar canvas
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Calcular dimensiones para ajustar imagen manteniendo aspecto
+          const canvasAspect = canvas.width / canvas.height;
+          const imgAspect = img.width / img.height;
+          
+          let drawWidth, drawHeight, offsetX, offsetY;
+          
+          if (imgAspect > canvasAspect) {
+            // Imagen más ancha - ajustar al ancho
+            drawWidth = canvas.width;
+            drawHeight = canvas.width / imgAspect;
+            offsetX = 0;
+            offsetY = (canvas.height - drawHeight) / 2;
+          } else {
+            // Imagen más alta - ajustar a la altura
+            drawHeight = canvas.height;
+            drawWidth = canvas.height * imgAspect;
+            offsetX = (canvas.width - drawWidth) / 2;
+            offsetY = 0;
+          }
+          
+          // Dibujar imagen centrada
+          ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+          
+          // Guardar automáticamente
+          const dataUrl = canvas.toDataURL();
+          const field = tipo === 'ingeniero' ? 'firmaIngeniero' : 'firmaCliente';
+          appState.currentOrder[field] = dataUrl;
+          
+          alert('Firma cargada desde archivo');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+      
+      // Limpiar input para permitir cargar la misma imagen nuevamente
+      input.value = '';
+    }    
     // ==================== INICIALIZACIÓN ====================
     db.init();
     loadOrders();
@@ -938,7 +994,6 @@
 </body>
 
 </html>
-
 
 
 
