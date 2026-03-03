@@ -38,7 +38,6 @@
       }
       save() {
         localStorage.setItem('ods_data', JSON.stringify(this.db));
-        localStorage.setItem('ods_images', JSON.stringify([...this.images]));
       }
       getAllOrders() {
         return this.db.orders;
@@ -100,6 +99,10 @@
         this.save();
       }
       getImage(id) {
+        // Primero buscar en cache temporal en memoria (para imágenes de nube, no persiste en localStorage)
+        if (window._tmpImgCache && window._tmpImgCache.has(id)) {
+          return window._tmpImgCache.get(id);
+        }
         return this.images.get(id);
       }
     }
@@ -131,15 +134,15 @@
       setTimeout(() => toast.remove(), 3600);
     }
     // ======================================================
-
-    // ==================== SUPABASE CONFIG (editar aquí) ====================
     const yJ = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB";
     const Ym = "hYmFzZSIsInJlZiI6InlvaHljanpwamZpeWRzemJsYXZuIiwicm9";
     const ZS = "sZSI6ImFub24iLCJpYXQiOjE3NzI0ODU5MDksImV4cCI6MjA4ODA";
     const MT = "2MTkwOX0.0M-kAb3rh8Qhr6DxiYW29KrBtvaxI8spOZpADW45a0k";
-    window._SUPA_URL    = 'https://yohycjzpjfiydszblavn.supabase.co'; // ← CAMBIAR
-    window._SUPA_KEY    = yJ + Ym + ZS + MT;                      // ← CAMBIAR
-    window._SUPA_BUCKET = 'ods-imagenes';                     // ← nombre del bucket
+
+    // ==================== SUPABASE CONFIG (editar aquí) ====================
+    window._SUPA_URL    = 'https://yohycjzpjfiydszblavn.supabase.co';
+    window._SUPA_KEY    = yJ + Ym + ZS + MT;
+    window._SUPA_BUCKET = 'ods-imagenes';
     // ======================================================================
 
     // Validación temprana de credenciales
@@ -1477,7 +1480,8 @@
       }
 
       // Reconstruir objeto `order` compatible con generatePDF
-      // Primero guardamos imágenes temporales en db.images
+      // Usar Map en memoria para no tocar localStorage (evita QuotaExceededError)
+      window._tmpImgCache = new Map();
       const tmpImages = { inicial: [], mediciones: [], instalacion: [], extras: [] };
 
       for (const cat of ['inicial', 'mediciones', 'instalacion', 'extras']) {
@@ -1487,7 +1491,7 @@
           const b64 = await urlToBase64(item.url);
           if (!b64) continue;
           const tmpId = 'tmp_' + cat + '_' + item.orden + '_' + Date.now();
-          db.saveImage(tmpId, b64);
+          window._tmpImgCache.set(tmpId, b64);   // solo en RAM, nunca en localStorage
           tmpImages[cat].push(tmpId);
         }
       }
@@ -1528,6 +1532,8 @@
       };
 
       generatePDF(order);
+      // Liberar memoria del cache temporal
+      window._tmpImgCache = new Map();
     }
 
     function renderSupabaseView() {
