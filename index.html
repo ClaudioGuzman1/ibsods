@@ -445,9 +445,58 @@
       yPos += saltoLineaSencilla;
       pdf.setFontSize(tipoDato);
       setNegro(pdf);
+      //
+      
+
+
+
+
+
+      const AnchoMaximoSolución = xPosF - xPosA;
+      const text = order.solucion || ' ';
+
+      // --- LÓGICA DE AJUSTE AUTOMÁTICO ---
+      let factor = 1; // Factor inicial
+      let AltoTotalSolucion = 0;
+      let fuenteSolucion = 0;
+      let limite = 85;
+      let LineasSolucion = [];
+
+      for (let f = factor; f > 0.1; f -= 0.05) {
+          fuenteSolucion = tipoDato * f;
+          pdf.setFontSize(fuenteSolucion);
+ 
+          LineasSolucion = pdf.splitTextToSize(text, AnchoMaximoSolución);
+ 
+          let AltoLinea = (fuenteSolucion * 0.3527) * 1.5; 
+          AltoTotalSolucion = LineasSolucion.length * AltoLinea;
+
+          if (AltoTotalSolucion <= limite) {
+              factor = f; 
+              break;
+          }
+      }
+
+      console.log("Factor final:", factor);
+      console.log("Fuente Solución:", fuenteSolucion);
+      console.log("Altura total final:", AltoTotalSolucion);
+
+      // --- RENDERIZADO ---
+      pdf.setFontSize(fuenteSolucion);
+    
+
+      
+
+
+
+
+
+
+
       pdf.text((order.solucion || ' '), (xPosA), yPos, { maxWidth: (xPosF - xPosA), align: 'left' });
       yPos = altoLetter * 0.6;
       yPos += saltoLineaDoble;
+      pdf.setFontSize(tipoDato);
       setAzul(pdf);
       pdf.text('Equipo retirado', xPosC, yPos, "center");
       pdf.text('Equipo instalado', xPosE, yPos, "center");
