@@ -7,7 +7,7 @@ const OFFLINE_ASSETS = [
   "/styles.css",
   "/icon-192.png",
   "/icon-256.png",
-  "/icon-512.png"
+  "/icon-512.png",
   "/favicon.ico"
 ];
 
