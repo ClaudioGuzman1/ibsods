@@ -8,7 +8,14 @@ const OFFLINE_ASSETS = [
   "/icon-192.png",
   "/icon-256.png",
   "/icon-512.png",
-  "/favicon.ico"
+  "/favicon.ico",
+  "ibsods/index.html",
+  "ibsods/manifest.json",
+  "ibsods/styles.css",
+  "ibsods/icon-192.png",
+  "ibsods/icon-256.png",
+  "ibsods/icon-512.png",
+  "ibsods/favicon.ico"
 ];
 
 self.addEventListener("install", e => {
