@@ -620,7 +620,7 @@
             paginaActual++;
             totalPaginas++;
             pdf.setPage(paginaActual);
-            agregarCabeza(1);
+            
           }
         }
 
@@ -629,6 +629,7 @@
       const pageCount = pdf.internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
+        if(i >1){agregarCabeza(1);}
         agregarPie(i);
         agregarFirmaAlPie();
       }
