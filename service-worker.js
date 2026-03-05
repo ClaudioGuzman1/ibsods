@@ -3,6 +3,7 @@ const CACHE = "offline-v1";
 const OFFLINE_ASSETS = [
   "/",
   "/index.html",
+  "/idt.html",
   "/manifest.json",
   "/styles.css",
   "/icon-192.png",
@@ -10,6 +11,7 @@ const OFFLINE_ASSETS = [
   "/icon-512.png",
   "/favicon.ico",
   "ibsods/index.html",
+  "ibsods/idt.html",
   "ibsods/manifest.json",
   "ibsods/styles.css",
   "ibsods/icon-192.png",

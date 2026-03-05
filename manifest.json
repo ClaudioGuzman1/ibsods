@@ -1,6 +1,6 @@
 {
-  "name": "ODS",
-  "short_name": "ODS",
+  "name": "ODS-IDT",
+  "short_name": "ODS-IDT",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
