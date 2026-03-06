@@ -1,6 +1,6 @@
 {
-  "name": "ODS-IDT",
-  "short_name": "ODS-IDT",
+  "name": "ODS-IDT-CED",
+  "short_name": "ODS-IDT-CED",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
