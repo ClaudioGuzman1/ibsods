@@ -8,6 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="manifest" href="manifest.json">
   
   
@@ -1015,6 +1016,11 @@
   </div>
 </body>
 <script>
-       alert("informanción importante: Las Constancias de entrega no se guardan en la nube. Tómalo en cuenta");
+  Swal.fire({
+    title: '¡Atención!',
+    text: 'Informanción importante: Las Constancias de entrega no se guardan en la nube, solo se guarda en tu dispositivo. Tenlo en cuenta',
+    icon: 'info',
+    confirmButtonText: 'Ok. Ya entendí'
+  })
 </script>
 </html>
