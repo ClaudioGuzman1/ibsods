@@ -153,7 +153,7 @@
       if (!window._SUPA_URL || window._SUPA_URL.includes('TU_PROYECTO')) missing.push('SUPABASE_URL');
       if (!window._SUPA_KEY || window._SUPA_KEY === 'TU_ANON_KEY')       missing.push('SUPABASE_KEY');
       if (missing.length) {
-        console.warn('⚠️ Supabase no configurado. Edita las líneas _SUPA_URL y _SUPA_KEY en el script. Faltan:', missing.join(', '));
+        console.warn('⚠️ Conexión a la Nube no configurado. Edita las líneas _SUPA_URL y _SUPA_KEY en el script. Faltan:', missing.join(', '));
       }
     })();
     // ==================== UTILIDADES ====================
@@ -676,7 +676,7 @@
 
       (async () => {
         try {
-          showToast('☁️ Sincronizando ODS con Supabase…', '#3b82f6');
+          showToast('☁️ Sincronizando ODS con la Nube…', '#3b82f6');
 
           const ticketSlug = (order.numeroTicket || order.id || Date.now()).toString().replace(/\s+/g, '_');
           const prefix     = `ods/${ticketSlug}`;
@@ -795,12 +795,12 @@
           }
 
           const saved = await insertRes.json();
-          console.log('✅ ODS guardada en Supabase:', saved);
-          showToast('✅ ODS sincronizada con Supabase');
+          console.log('✅ ODS guardada en la Nube:', saved);
+          showToast('✅ ODS sincronizada con la Nube');
 
         } catch (err) {
-          console.error('❌ Error al sincronizar con Supabase:', err);
-          showToast('⚠️ Error al sincronizar con Supabase (ver consola)', '#ef4444');
+          console.error('❌ Error al sincronizar con la Nube:', err);
+          showToast('⚠️ Error al sincronizar con la Nube (ver consola)', '#ef4444');
           // Cola de reintentos local
           try {
             const pendientes = JSON.parse(localStorage.getItem('ods_pendientes_sync') || '[]');
@@ -1482,11 +1482,11 @@
     }
 
     async function deleteCloudOrder(id) {
-      if (!confirm('¿Eliminar esta ODS de Supabase? Esta acción no se puede deshacer.')) return;
+      if (!confirm('¿Eliminar esta ODS de la Nube? Esta acción no se puede deshacer.')) return;
       try {
         const res = await cloudFetch(`/rest/v1/ods?id=eq.${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error(await res.text());
-        showToast('🗑️ ODS eliminada de Supabase');
+        showToast('🗑️ ODS eliminada de la Nube');
         await loadCloudOrders();
         render();
       } catch (err) {
@@ -1502,7 +1502,7 @@
 
     // Reimprimir PDF desde datos de Supabase (descarga imágenes de Storage)
     async function printCloudPDF(record) {
-      showToast('⏳ Cargando imágenes desde Supabase…', '#3b82f6');
+      showToast('⏳ Cargando imágenes desde la Nube…', '#3b82f6');
 
       // Convertir URL pública → base64 para jsPDF
       async function urlToBase64(url) {
@@ -1619,7 +1619,7 @@
               ${cloudLoading ? `
                 <div style="text-align:center; padding:48px; color:#6b7280;">
                   <div style="font-size:32px; margin-bottom:8px;">⏳</div>
-                  Cargando desde Supabase…
+                  Cargando desde la Nube…
                 </div>
               ` : cloudOrders.length === 0 ? `
                 <div style="text-align:center; padding:48px; color:#6b7280;">
