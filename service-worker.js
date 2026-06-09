@@ -3,23 +3,12 @@ const CACHE = "offline-v1";
 const OFFLINE_ASSETS = [
   "/",
   "/index.html",
-  "/idt.html",
-  "/cde.html",
   "/manifest.json",
   "/styles.css",
   "/icon-192.png",
   "/icon-256.png",
   "/icon-512.png",
   "/favicon.ico",
-  "ibsods/index.html",
-  "ibsods/idt.html",
-  "ibsods/cde.html",
-  "ibsods/manifest.json",
-  "ibsods/styles.css",
-  "ibsods/icon-192.png",
-  "ibsods/icon-256.png",
-  "ibsods/icon-512.png",
-  "ibsods/favicon.ico"
 ];
 
 self.addEventListener("install", e => {
