@@ -1932,7 +1932,7 @@
       }
     }
     function renderListView() {
-      const filteredOrders = appState.orders.filter(o =>
+      const filteredOrders = appState.orders.toReversed().filter(o =>
         (o.numeroTicket || '').toLowerCase().includes(appState.search.toLowerCase()) ||
         (o.cliente || '').toLowerCase().includes(appState.search.toLowerCase())
       );
@@ -1982,7 +1982,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      ${filteredOrders.map(order => `
+                      ${filteredOrders.toReversed().map(order => `
                         <tr style="border-top: 1px solid #e5e7eb;">
                           <td style="padding: 12px;">${order.numeroTicket || '-'}</td>
                           <td style="padding: 12px;">${order.fechaAtencion || '-'}</td>
