@@ -1871,7 +1871,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      ${filteredOrders.map(order => `
+                      ${filteredOrders.reverse().map(order => `
                         <tr style="border-top: 1px solid #e5e7eb;">
                           <td style="padding: 12px;">${order.numeroTicket || '-'}</td>
                           <td style="padding: 12px;">${order.fechaAtencion || '-'}</td>
