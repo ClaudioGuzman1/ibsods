@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soy IDC 🔥</title>
+  <title>Soy IDC 🔥🔥</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="icon" href="favicon.ico" type="image/x-icon">
@@ -145,6 +145,10 @@
     window._SUPA_URL    = 'https://yohycjzpjfiydszblavn.supabase.co';
     window._SUPA_KEY    = yJ + Ym + ZS + MT;
     window._SUPA_BUCKET = 'ods-imagenes';
+// Corrección para Secret
+    window._SUPA_URL    = "${{ secrets.SUPA_URL }}";
+    window._SUPA_KEY    = "${{ secrets.SUPA_KEY }}";
+    window._SUPA_BUCKET = "${{ secrets.SUPA_BUCKET }}";
     // ======================================================================
 
     // Validación temprana de credenciales
