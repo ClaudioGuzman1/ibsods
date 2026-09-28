@@ -1,31 +1,46 @@
-// Registrador mejorado del Service Worker
-if ("serviceWorker" in navigator) {
-  // Detectar la ruta base
-  const pathArray = window.location.pathname.split('/').filter(Boolean);
-  const basePath = pathArray.length > 0 && !pathArray[0].includes('.') 
-    ? '/' + pathArray[0] + '/' 
-    : '/';
-  
-  const swPath = basePath + 'service-worker.js';
-  
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register(swPath, { scope: basePath })
-      .then(registration => {
-        console.log('✅ Service Worker registrado exitosamente');
-        console.log('   Ruta:', swPath);
-        console.log('   Scope:', basePath);
-        
-        // Verificar actualizaciones cada hora
-        setInterval(() => {
-          registration.update();
-        }, 60 * 60 * 1000);
-      })
-      .catch(error => {
-        console.warn('❌ Error al registrar Service Worker:', error);
-        console.warn('   Ruta intentada:', swPath);
-        console.warn('   Scope:', basePath);
-      });
-  });
-} else {
-  console.warn('⚠️ Este navegador no soporta Service Workers');
-}
+// ============================================================
+// REGISTRO DEL SERVICE WORKER - Soy IDC
+// Compatible con GitHub Pages y dominio raíz
+// ============================================================
+
+(() => {
+    if (!('serviceWorker' in navigator)) {
+        console.warn('⚠️ Este navegador no soporta Service Workers');
+        return;
+    }
+
+    window.addEventListener('load', async () => {
+        try {
+            // Obtiene automáticamente la carpeta donde está index.html
+            const basePath = new URL('./', window.location.href).pathname;
+
+            // Service Worker ubicado en la misma carpeta
+            const swPath = `${basePath}service-worker.js`;
+
+            const registration = await navigator.serviceWorker.register(
+                swPath,
+                {
+                    scope: basePath
+                }
+            );
+
+            console.log('✅ Service Worker registrado');
+            console.log('📁 Base:', basePath);
+            console.log('📄 SW:', swPath);
+            console.log('🎯 Scope:', registration.scope);
+
+            // Comprobar actualizaciones periódicamente
+            setInterval(() => {
+                registration.update().catch(err => {
+                    console.warn('⚠️ Error actualizando Service Worker:', err);
+                });
+            }, 60 * 60 * 1000);
+
+        } catch (error) {
+            // IMPORTANTE:
+            // Un error del Service Worker NO debe impedir que
+            // la aplicación continúe funcionando normalmente.
+            console.warn('⚠️ No se pudo registrar el Service Worker:', error);
+        }
+    });
+})();
