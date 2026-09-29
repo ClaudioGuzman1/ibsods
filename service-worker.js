@@ -1,203 +1,80 @@
-// ============================================================
-// SERVICE WORKER - Soy IDC
-// GitHub Pages / PWA
-// ============================================================
+const CACHE = "offline-v3-fast";
+const RUNTIME_CACHE = "runtime-v3";
 
-const CACHE_NAME = 'soy-idc-v3';
+const basePath = self.location.pathname.replace(/\/[^\/]*$/, '') || '/';
 
-// ------------------------------------------------------------
-// Obtener correctamente la carpeta de la aplicación
-// ------------------------------------------------------------
-
-// Ejemplo GitHub Pages:
-// https://claudioguzman1.github.io/ibsods/
-//                      ^^^^^^^
-// basePath = /ibsods/
-
-const BASE_PATH = new URL('./', self.registration.scope).pathname;
-
-// ------------------------------------------------------------
-// Archivos propios de la aplicación que sí queremos cachear
-// ------------------------------------------------------------
-
-const APP_SHELL = [
-    BASE_PATH,
-    BASE_PATH + 'index.html',
-    BASE_PATH + 'styles.css',
-    BASE_PATH + 'manifest.json',
-    BASE_PATH + 'icon-192.png',
-    BASE_PATH + 'icon-256.png',
-    BASE_PATH + 'icon-512.png',
-    BASE_PATH + 'favicon.ico'
+const CRITICAL_ASSETS = [
+  basePath,
+  basePath + 'index.html',
+  basePath + 'manifest.json',
+  basePath + 'favicon.ico',
 ];
 
-// ============================================================
-// INSTALL
-// ============================================================
-
-self.addEventListener('install', event => {
-
-    console.log('[SW] Instalando:', CACHE_NAME);
-    console.log('[SW] Base:', BASE_PATH);
-
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-
-                // No hacemos que la instalación falle si alguno
-                // de los iconos no existe.
-                return Promise.allSettled(
-                    APP_SHELL.map(url =>
-                        cache.add(url).catch(error => {
-                            console.warn(
-                                '[SW] No se pudo cachear:',
-                                url,
-                                error
-                            );
-                        })
-                    )
-                );
-            })
-            .then(() => self.skipWaiting())
-    );
+// Cachear agresivamente en install
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open(CACHE).then(cache => {
+      return cache.addAll(CRITICAL_ASSETS).catch(() => {});
+    })
+  );
+  self.skipWaiting();
 });
 
-// ============================================================
-// ACTIVATE
-// ============================================================
-
-self.addEventListener('activate', event => {
-
-    event.waitUntil(
-        caches.keys()
-            .then(cacheNames => {
-
-                return Promise.all(
-                    cacheNames
-                        .filter(name => name !== CACHE_NAME)
-                        .map(name => {
-                            console.log(
-                                '[SW] Eliminando caché antigua:',
-                                name
-                            );
-
-                            return caches.delete(name);
-                        })
-                );
-            })
-            .then(() => self.clients.claim())
-    );
+self.addEventListener("activate", e => {
+  e.waitUntil(
+    caches.keys().then(names => 
+      Promise.all(names.map(name => 
+        !name.startsWith('offline-v') && !name.startsWith('runtime-v') 
+          ? caches.delete(name) 
+          : Promise.resolve()
+      ))
+    )
+  );
+  self.clients.claim();
 });
 
-// ============================================================
-// FETCH
-// ============================================================
+self.addEventListener("fetch", e => {
+  if (e.request.method !== 'GET') return;
 
-self.addEventListener('fetch', event => {
-
-    const request = event.request;
-
-    // Solo nos interesan peticiones GET
-    if (request.method !== 'GET') {
-        return;
-    }
-
-    const url = new URL(request.url);
-
-    // --------------------------------------------------------
-    // NO INTERCEPTAR:
-    //
-    // - Supabase
-    // - APIs externas
-    // - CDN
-    // - Google
-    // - Font Awesome
-    // - jsPDF
-    // - Tailwind
-    // - cualquier dominio externo
-    // --------------------------------------------------------
-
-    if (url.origin !== self.location.origin) {
-        return;
-    }
-
-    // --------------------------------------------------------
-    // Solo trabajar con URLs dentro de nuestra aplicación
-    // --------------------------------------------------------
-
-    if (!url.pathname.startsWith(BASE_PATH)) {
-        return;
-    }
-
-    // --------------------------------------------------------
-    // Navegación HTML
-    //
-    // Primero intenta Internet.
-    // Si no hay Internet, utiliza index.html de la caché.
-    // --------------------------------------------------------
-
-    if (request.mode === 'navigate') {
-
-        event.respondWith(
-
-            fetch(request)
-                .then(response => {
-
-                    // Guardar una copia actualizada de index.html
-                    if (response.ok) {
-
-                        const copy = response.clone();
-
-                        caches.open(CACHE_NAME)
-                            .then(cache => {
-                                cache.put(
-                                    BASE_PATH + 'index.html',
-                                    copy
-                                );
-                            });
-                    }
-
-                    return response;
-                })
-                .catch(() => {
-
-                    return caches.match(
-                        BASE_PATH + 'index.html'
-                    );
-                })
-        );
-
-        return;
-    }
-
-    // --------------------------------------------------------
-    // Archivos estáticos
-    //
-    // Network First:
-    // 1. Internet
-    // 2. Caché si no hay Internet
-    // --------------------------------------------------------
-
-    event.respondWith(
-
-        fetch(request)
-            .then(response => {
-
-                if (response.ok) {
-
-                    const copy = response.clone();
-
-                    caches.open(CACHE_NAME)
-                        .then(cache => {
-                            cache.put(request, copy);
-                        });
-                }
-
-                return response;
-            })
-            .catch(() => {
-
-                return caches.match(request);
-            })
+  const url = new URL(e.request.url);
+  
+  // ⚡ ESTRATEGIA 1: Cache INMEDIATO para assets estáticos
+  if (/\.(js|css|png|jpg|jpeg|gif|ico|woff2|woff)$/.test(url.pathname)) {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        // Devolver caché al instante
+        if (cached) return cached;
+        
+        // En background, actualizar caché sin bloquear
+        return fetch(e.request)
+          .then(response => {
+            if (!response || response.status !== 200) return response;
+            const clone = response.clone();
+            caches.open(RUNTIME_CACHE).then(c => c.put(e.request, clone));
+            return response;
+          })
+          .catch(() => cached || new Response('Offline'));
+      })
     );
+    return;
+  }
+
+  // ⚡ ESTRATEGIA 2: Network timeout (esperar máx 3 segundos)
+  e.respondWith(
+    Promise.race([
+      fetch(e.request).then(r => {
+        if (r.ok) {
+          caches.open(RUNTIME_CACHE).then(c => c.put(e.request, r.clone()));
+        }
+        return r;
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      )
+    ])
+    .catch(() => 
+      caches.match(e.request)
+        .then(cached => cached || caches.match(basePath + 'index.html'))
+    )
+  );
 });
