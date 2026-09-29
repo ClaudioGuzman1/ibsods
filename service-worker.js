@@ -1,80 +1,94 @@
-const CACHE = "offline-v3-fast";
-const RUNTIME_CACHE = "runtime-v3";
+// v4 – corrige ERR_FAILED en conexiones lentas (datos móviles).
+// Antes: la navegación competía contra un timeout de 3 s; si perdía y no había caché,
+// respondWith recibía "undefined" y Chrome mostraba ERR_FAILED.
+const CACHE = "offline-v4";
+const RUNTIME_CACHE = "runtime-v4";
+const basePath = self.location.pathname.replace(/\/[^\/]*$/, '') + '/';
+const V = "1.0.0"; // mantener igual al ?v= de index.html
 
-const basePath = self.location.pathname.replace(/\/[^\/]*$/, '') || '/';
+const SHELL = [
+  '', 'index.html', 'manifest.json', 'favicon.ico', `styles.css?v=${V}`, 'sw-register.js',
+  ...['core/database','core/toast','core/config','core/utils','core/state','orders',
+      'pdf/assets','pdf/ods','pdf/idt','pdf/cde','views/render','views/list-view','views/form-view',
+      'features/signature','features/entregas','features/backup',
+      'cloud/api','cloud/print','cloud/view','cloud/edit','main'].map(m => `js/${m}.js?v=${V}`),
+].map(p => basePath + p);
 
-const CRITICAL_ASSETS = [
-  basePath,
-  basePath + 'index.html',
-  basePath + 'manifest.json',
-  basePath + 'favicon.ico',
-];
-
-// Cachear agresivamente en install
-self.addEventListener("install", e => {
+self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(cache => {
-      return cache.addAll(CRITICAL_ASSETS).catch(() => {});
-    })
+    caches.open(CACHE).then(c =>
+      // uno por uno: si un archivo falla, los demás se guardan igual
+      Promise.all(SHELL.map(u => c.add(u).catch(() => {})))
+    )
   );
   self.skipWaiting();
 });
 
-self.addEventListener("activate", e => {
+self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(names => 
-      Promise.all(names.map(name => 
-        !name.startsWith('offline-v') && !name.startsWith('runtime-v') 
-          ? caches.delete(name) 
-          : Promise.resolve()
-      ))
-    )
+    caches.keys().then(names => Promise.all(
+      names.filter(n => n !== CACHE && n !== RUNTIME_CACHE).map(n => caches.delete(n))
+    )).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-self.addEventListener("fetch", e => {
-  if (e.request.method !== 'GET') return;
+const offlineResponse = () =>
+  new Response('Sin conexión y sin copia guardada. Abre la app una vez con buena señal.',
+    { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 
-  const url = new URL(e.request.url);
-  
-  // ⚡ ESTRATEGIA 1: Cache INMEDIATO para assets estáticos
-  if (/\.(js|css|png|jpg|jpeg|gif|ico|woff2|woff)$/.test(url.pathname)) {
-    e.respondWith(
-      caches.match(e.request).then(cached => {
-        // Devolver caché al instante
-        if (cached) return cached;
-        
-        // En background, actualizar caché sin bloquear
-        return fetch(e.request)
-          .then(response => {
-            if (!response || response.status !== 200) return response;
-            const clone = response.clone();
-            caches.open(RUNTIME_CACHE).then(c => c.put(e.request, clone));
-            return response;
-          })
-          .catch(() => cached || new Response('Offline'));
-      })
-    );
+async function fromCache(req, ignoreSearch = false) {
+  return (await caches.match(req, { ignoreSearch })) || null;
+}
+
+// Nunca devuelve undefined: siempre una Response válida.
+async function networkFirst(req, { navigation = false, timeoutMs = 8000 } = {}) {
+  const cached = await fromCache(req, navigation);
+  try {
+    const net = fetch(req).then(res => {
+      if (res && (res.ok || res.type === 'opaque')) {
+        const copy = res.clone();
+        caches.open(RUNTIME_CACHE).then(c => c.put(req, copy)).catch(() => {});
+      }
+      return res;
+    });
+    // Solo se usa el timeout si HAY copia guardada que mostrar; si no, se espera a la red.
+    if (cached) {
+      return await Promise.race([
+        net,
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeoutMs)),
+      ]);
+    }
+    return await net;
+  } catch (_) {
+    if (cached) return cached;
+    if (navigation) {
+      return (await fromCache(basePath + 'index.html')) || (await fromCache(basePath)) || offlineResponse();
+    }
+    return offlineResponse();
+  }
+}
+
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+
+  // Navegación (abrir la app): red primero, sin cortar la descarga en redes lentas.
+  if (req.mode === 'navigate') {
+    e.respondWith(networkFirst(req, { navigation: true }));
     return;
   }
 
-  // ⚡ ESTRATEGIA 2: Network timeout (esperar máx 3 segundos)
-  e.respondWith(
-    Promise.race([
-      fetch(e.request).then(r => {
-        if (r.ok) {
-          caches.open(RUNTIME_CACHE).then(c => c.put(e.request, r.clone()));
-        }
-        return r;
-      }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 3000)
-      )
-    ])
-    .catch(() => 
-      caches.match(e.request)
-        .then(cached => cached || caches.match(basePath + 'index.html'))
-    )
-  );
+  // Archivos estáticos propios (.js/.css/imágenes): caché primero.
+  if (url.origin === self.location.origin && /\.(js|css|png|jpg|jpeg|gif|ico|woff2?)$/.test(url.pathname)) {
+    e.respondWith((async () => {
+      const cached = await fromCache(req);
+      if (cached) return cached;
+      return networkFirst(req);
+    })());
+    return;
+  }
+
+  // Todo lo demás (CDN de jsPDF/Tailwind, API de Supabase): red primero con respaldo.
+  e.respondWith(networkFirst(req));
 });
