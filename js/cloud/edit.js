@@ -2,6 +2,42 @@
 // NUBE: editar y guardar registro
 // ============================================================
 
+// Convierte un registro de la Nube (snake_case) a los campos de una orden local (camelCase).
+// No incluye id, imágenes ni firmas: cada llamador las resuelve a su manera.
+function cloudRecordToOrder(record) {
+  return {
+    numeroTicket:     record.numero_ticket     || '',
+    fechaAtencion:    record.fecha_atencion    || '',
+    fechaCreacion:    record.fecha_creacion    || '',
+    ingeniero:        record.ingeniero         || '',
+    tipoServicio:     record.tipo_servicio     || '',
+    incidencia:       record.incidencia        || '',
+    cliente:          record.cliente           || '',
+    ubicacion:        record.ubicacion         || '',
+    direccion:        record.direccion         || '',
+    contacto:         record.contacto          || '',
+    cargo:            record.cargo             || '',
+    telefono:         record.telefono          || '',
+    correo:           record.correo            || '',
+    nombreTerminal:   record.nombre_terminal   || '',
+    solicitaTerminal: record.solicita_terminal || false,
+    modeloTerminal:   record.modelo_terminal   || '',
+    serieRetirada:    record.serie_retirada    || '',
+    macRetirada:      record.mac_retirada      || '',
+    fallaRetirada:    record.falla_retirada    || '',
+    serieInstalada:   record.serie_instalada   || '',
+    macInstalada:     record.mac_instalada     || '',
+    solucion:         record.solucion          || '',
+    comentario:       record.comentario        || '',
+    // Entregas: puede ser array directo o null
+    entregas: Array.isArray(record.entregas)
+      ? { materiales: record.entregas }
+      : (record.entregas && Array.isArray(record.entregas.materiales)
+          ? record.entregas
+          : { materiales: [] })
+  };
+}
+
 async function editCloudOrder(record) {
   // Cerrar modal si estaba abierto
   const modal = document.getElementById('cloud-modal');
@@ -33,41 +69,11 @@ async function editCloudOrder(record) {
   if (record.firma_ingeniero) firmaIngeniero = await urlToBase64(record.firma_ingeniero);
 
   // Mapear snake_case → camelCase igual que printCloudPDF_ODS
-  const order = {
-    id:               null,   // no tiene id local; se guarda en cloudEditId
-    numeroTicket:     record.numero_ticket     || '',
-    fechaAtencion:    record.fecha_atencion    || '',
-    fechaCreacion:    record.fecha_creacion    || '',
-    ingeniero:        record.ingeniero         || '',
-    tipoServicio:     record.tipo_servicio     || '',
-    incidencia:       record.incidencia        || '',
-    cliente:          record.cliente           || '',
-    ubicacion:        record.ubicacion         || '',
-    direccion:        record.direccion         || '',
-    contacto:         record.contacto          || '',
-    cargo:            record.cargo             || '',
-    telefono:         record.telefono          || '',
-    correo:           record.correo            || '',
-    nombreTerminal:   record.nombre_terminal   || '',
-    solicitaTerminal: record.solicita_terminal || false,
-    modeloTerminal:   record.modelo_terminal   || '',
-    serieRetirada:    record.serie_retirada    || '',
-    macRetirada:      record.mac_retirada      || '',
-    fallaRetirada:    record.falla_retirada    || '',
-    serieInstalada:   record.serie_instalada   || '',
-    macInstalada:     record.mac_instalada     || '',
-    solucion:         record.solucion          || '',
-    comentario:       record.comentario        || '',
-    // Entregas: puede ser array directo o null
-    entregas: Array.isArray(record.entregas)
-      ? { materiales: record.entregas }
-      : (record.entregas && Array.isArray(record.entregas.materiales)
-          ? record.entregas
-          : { materiales: [] }),
-    images:           tmpImages,
-    firmaCliente:     firmaCliente,
-    firmaIngeniero:   firmaIngeniero,
-  };
+  const order = Object.assign({ id: null }, cloudRecordToOrder(record), {
+    images:         tmpImages,
+    firmaCliente:   firmaCliente,
+    firmaIngeniero: firmaIngeniero,
+  });
 
   appState.setState({
     currentOrder: order,
@@ -79,7 +85,9 @@ async function editCloudOrder(record) {
 
 async function saveCloudOrder() {
   const order = appState.currentOrder;
-  const cloudId = appState.cloudEditId;
+  // Modo "copia local": la orden local guarda el id del registro de la Nube (cloudId)
+  const localMode = !appState.cloudEditId && !!(order && order.cloudId);
+  const cloudId = appState.cloudEditId || (order && order.cloudId);
   if (!cloudId) { showToast('⚠️ No hay registro de nube activo', '#ef4444'); return; }
 
   const SUPABASE_URL = window._SUPA_URL;
@@ -89,6 +97,9 @@ async function saveCloudOrder() {
   // Helper: subir un archivo base64 a Supabase Storage y devolver URL pública
 
   try {
+    // En copia local, primero se guardan los cambios en el dispositivo (no se pierden si falla la subida)
+    if (localMode && order.id) db.updateOrder(order.id, order);
+
     showToast('☁️ Subiendo evidencias y firmas…', '#3b82f6');
 
     const ticketSlug = (order.numeroTicket || cloudId || Date.now()).toString().replace(/\s+/g, '_');
@@ -183,11 +194,133 @@ async function saveCloudOrder() {
     if (!res.ok) throw new Error(await res.text());
     showToast('✅ Registro actualizado en la Nube');
     window._tmpImgCache = new Map();
+    if (localMode && order.id) {
+      db.updateOrder(order.id, { cloudSyncedAt: new Date().toISOString() });
+      loadOrders();
+    }
     appState.setState({ cloudEditId: null, view: 'supabase' });
     await loadCloudOrders();
     render();
   } catch (err) {
     console.error('❌ Error al guardar en la Nube:', err);
     showToast('⚠️ Error al guardar: ' + err.message, '#ef4444');
+  }
+}
+
+// ------------------------------------------------------------
+// COPIAR UN REGISTRO DE LA NUBE AL DISPOSITIVO
+// Descarga TODAS las imágenes y firmas y crea una orden local editable,
+// vinculada al registro (cloudId) para volver a subirla con "Guardar en Nube".
+// ------------------------------------------------------------
+
+// Descarga una imagen pública como dataURL. Devuelve null si falla (HTTP != 200 o no es imagen).
+async function downloadCloudImage(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    let blob = await res.blob();
+    if (/^(text\/|application\/json)/.test(blob.type || '')) return null; // página de error, no imagen
+    if (!(blob.type || '').startsWith('image/')) {
+      blob = blob.slice(0, blob.size, /\.png(\?|$)/i.test(url) ? 'image/png' : 'image/jpeg');
+    }
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch { return null; }
+}
+
+// Ejecuta fn sobre cada elemento con un máximo de `limit` tareas simultáneas (conserva el orden).
+async function mapWithLimit(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+async function copyCloudOrderToLocal(recordOrId) {
+  // Los botones pasan solo el id (evita romper el HTML si el registro trae comillas)
+  const record = (recordOrId && typeof recordOrId === 'object')
+    ? recordOrId
+    : (appState.cloudOrders || []).find(r => String(r.id) === String(recordOrId));
+  if (!record) { showToast('⚠️ Registro de la Nube no encontrado', '#ef4444'); return; }
+  const modal = document.getElementById('cloud-modal');
+  if (modal) modal.style.display = 'none';
+
+  const existing = db.getAllOrders().find(o => o.cloudId != null && String(o.cloudId) === String(record.id));
+  if (existing && !confirm(
+    `Ya existe una copia local de este ticket (#${existing.numeroTicket || record.id}).\n\n` +
+    '¿Reemplazarla con la versión actual de la Nube?\nSe perderán los cambios locales que no hayas enviado.')) {
+    showToast('Se conservó la copia local existente', '#6b7280');
+    return;
+  }
+
+  // Lista de archivos a descargar: evidencias por categoría + firmas
+  const cats = ['inicial', 'mediciones', 'instalacion', 'extras'];
+  const jobs = [];
+  cats.forEach(cat => {
+    (record.imagenes?.[cat] || [])
+      .filter(item => item && item.url)
+      .slice().sort((a, b) => (a.orden || 0) - (b.orden || 0))
+      .forEach(item => jobs.push({ kind: 'img', cat, url: item.url }));
+  });
+  if (record.firma_cliente)   jobs.push({ kind: 'firmaCliente',   url: record.firma_cliente });
+  if (record.firma_ingeniero) jobs.push({ kind: 'firmaIngeniero', url: record.firma_ingeniero });
+
+  showToast(`⬇️ Descargando ${jobs.length} archivo(s) de la Nube…`, '#6366f1');
+  const downloaded = await mapWithLimit(jobs, 4, job => downloadCloudImage(job.url));
+
+  // Todo o nada: si falta algo, no se crea la copia (al volver a subir se perdería en la Nube)
+  const failed = downloaded.filter(d => !d).length;
+  if (failed) {
+    alert(`No se pudieron descargar ${failed} de ${jobs.length} archivo(s).\n\n` +
+          'No se creó la copia local para no perder información al volver a subirla.\n' +
+          'Revisa tu conexión e inténtalo de nuevo.');
+    return;
+  }
+
+  const savedIds = [];
+  try {
+    const failuresBefore = db.images.failures || 0;
+    const images = { inicial: [], mediciones: [], instalacion: [], extras: [] };
+    let firmaCliente = null, firmaIngeniero = null;
+    jobs.forEach((job, i) => {
+      if (job.kind === 'firmaCliente')        firmaCliente = downloaded[i];
+      else if (job.kind === 'firmaIngeniero') firmaIngeniero = downloaded[i];
+      else {
+        const id = 'img_' + Date.now() + '_' + Math.random();
+        db.saveImage(id, downloaded[i]);
+        savedIds.push(id);
+        images[job.cat].push(id);
+      }
+    });
+    await db.images.flush();
+    if ((db.images.failures || 0) > failuresBefore) {
+      throw new Error('No hay espacio suficiente en el dispositivo para guardar las imágenes');
+    }
+
+    const created = db.createOrder(Object.assign(cloudRecordToOrder(record), {
+      images, firmaCliente, firmaIngeniero,
+      cloudId:       record.id,
+      cloudCopiedAt: new Date().toISOString(),
+    }));
+    if (existing) db.deleteOrder(existing.id);   // sustituye la copia anterior (y borra sus imágenes)
+    loadOrders();
+
+    showToast(`✅ Copia local creada · ${savedIds.length} imagen(es) descargadas` +
+              (db.persistent ? '' : ' (⚠️ no se conservarán al cerrar la app)'));
+    editOrder(JSON.parse(JSON.stringify(created)));
+  } catch (err) {
+    savedIds.forEach(id => db.images.delete(id));  // revertir
+    console.error('❌ Error al copiar a local:', err);
+    alert('No se pudo crear la copia local: ' + err.message);
   }
 }

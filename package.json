@@ -9,6 +9,7 @@
     "test:refactor": "APP_DIR=. node --test \"tests/**/*.test.js\""
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.7",
     "jsdom": "^24.1.0"
   }
 }

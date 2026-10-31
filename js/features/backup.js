@@ -58,7 +58,7 @@ function importData(input) {
       // Restaurar datos
       db.db.orders = importedData.data.orders;
       db.db.counter = importedData.data.counter;
-      db.images = new Map(importedData.data.images);
+      db.replaceImages(importedData.data.images);
       
       // Guardar en localStorage
       db.save();

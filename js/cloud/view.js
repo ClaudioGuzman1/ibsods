@@ -90,6 +90,10 @@ function renderSupabaseView() {
                         class="btn" style="background:#f59e0b; color:white; margin:0 2px; font-size:12px; padding:6px 10px;">
                         ✏️ Editar
                       </button>
+                      <button onclick="copyCloudOrderToLocal(${r.id})"
+                        class="btn" style="background:#0ea5e9; color:white; margin:0 2px; font-size:12px; padding:6px 10px;" title="Copiar a este dispositivo (con imágenes) para editar">
+                        📥 Local
+                      </button>
                       <button onclick='printCloudPDF_ODS(${JSON.stringify(r).replace(/'/g, "\'")})'
                         class="btn" style="background:#10b981; color:white; margin:0 2px; font-size:12px; padding:6px 10px;">
                         📄 ODS
@@ -222,6 +226,10 @@ function showCloudDetail(r) {
       <button onclick='editCloudOrder(${JSON.stringify(r).replace(/'/g, "\'")})'
         class="btn" style="background:#f59e0b; color:white;">
         ✏️ Editar
+      </button>
+      <button onclick="copyCloudOrderToLocal(${r.id})"
+        class="btn" style="background:#0ea5e9; color:white;">
+        📥 Copiar a local
       </button>
       <button onclick="document.getElementById('cloud-modal').style.display='none'" class="btn btn-secondary">Cerrar</button>
       <button onclick='printCloudPDF(${JSON.stringify(r).replace(/'/g, "\'")});document.getElementById("cloud-modal").style.display="none"'

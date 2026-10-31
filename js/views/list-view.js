@@ -55,7 +55,7 @@ function renderListView() {
                 <tbody>
                   ${filteredOrders.reverse().map(order => `
                     <tr style="border-top: 1px solid #e5e7eb;">
-                      <td style="padding: 12px;">${order.numeroTicket || '-'}</td>
+                      <td style="padding: 12px;">${order.numeroTicket || '-'}${order.cloudId ? ` <span title="Copia de la Nube #${order.cloudId}">☁️</span>` : ''}</td>
                       <td style="padding: 12px;">${order.fechaAtencion || '-'}</td>
                       <td style="padding: 12px;">${order.cliente || '-'} @ ${order.nombreTerminal || ''}</td>
                       <td style="padding: 12px; text-align: right; font-weight: bold; color: rgb(255, 212, 59) !important;">

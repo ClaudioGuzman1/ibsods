@@ -5,6 +5,7 @@
 function renderFormView() {
   const order = appState.currentOrder;
   const isCloud = !!appState.cloudEditId;
+  const isLinked = !isCloud && !!(order && order.cloudId);   // copia local de un registro de la Nube
   return `
         <div style="min-height: 100vh; background: #f9fafb; padding: 16px;">
           <div style="max-width: 900px; margin: 0 auto;">
@@ -21,6 +22,15 @@ function renderFormView() {
               </button>
             </div>` : ''}
 
+            ${isLinked ? `
+            <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:10px 16px; margin-bottom:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <span style="font-size:18px;">📥</span>
+              <span style="font-size:14px; color:#075985; font-weight:500; flex:1;">
+                Copia local de la Nube &nbsp;·&nbsp; <strong>#${order.numeroTicket || order.cloudId}</strong>
+                &nbsp;—&nbsp; agrega imágenes y pulsa «Guardar en Nube» para actualizar el registro.
+              </span>
+            </div>` : ''}
+
             <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-bottom: 20px;">
               <h1 style="font-size: 22px; font-weight: bold; margin: 0;">
                 ${isCloud ? '✏️ Editar desde la Nube' : (order.id ? 'Editar Visita en sitio' : 'Nueva Visita en Sitio')}
@@ -29,7 +39,8 @@ function renderFormView() {
                 <button onclick="${isCloud ? "appState.setState({cloudEditId:null,view:'supabase'})" : "appState.setState({ view: 'list' })"}" class="btn btn-secondary">Cancelar</button>
                 ${isCloud
                   ? `<button onclick="saveCloudOrder()" class="btn btn-primary" style="background:#6366f1;">☁️ Guardar en Nube</button>`
-                  : `<button onclick="saveOrder()" class="btn btn-primary">💾 Guardar</button>`
+                  : `<button onclick="saveOrder()" class="btn btn-primary">💾 Guardar</button>${isLinked
+                      ? `<button onclick="saveCloudOrder()" class="btn btn-primary" style="background:#6366f1;">☁️ Guardar en Nube</button>` : ''}`
                 }
               </div>
             </div>

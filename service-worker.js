@@ -1,14 +1,14 @@
 // v4 – corrige ERR_FAILED en conexiones lentas (datos móviles).
 // Antes: la navegación competía contra un timeout de 3 s; si perdía y no había caché,
 // respondWith recibía "undefined" y Chrome mostraba ERR_FAILED.
-const CACHE = "offline-v4";
-const RUNTIME_CACHE = "runtime-v4";
+const CACHE = "offline-v5";
+const RUNTIME_CACHE = "runtime-v5";
 const basePath = self.location.pathname.replace(/\/[^\/]*$/, '') + '/';
-const V = "1.0.0"; // mantener igual al ?v= de index.html
+const V = "1.1.0"; // mantener igual al ?v= de index.html
 
 const SHELL = [
   '', 'index.html', 'manifest.json', 'favicon.ico', `styles.css?v=${V}`, 'sw-register.js',
-  ...['core/database','core/toast','core/config','core/utils','core/state','orders',
+  ...['core/image-store','core/database','core/toast','core/config','core/utils','core/state','orders',
       'pdf/assets','pdf/ods','pdf/idt','pdf/cde','views/render','views/list-view','views/form-view',
       'features/signature','features/entregas','features/backup',
       'cloud/api','cloud/print','cloud/view','cloud/edit','main'].map(m => `js/${m}.js?v=${V}`),

@@ -5,15 +5,49 @@
 class Database {
   constructor() {
     this.db = null;
-    this.images = new Map();
+    this.images = new PersistentImageMap();
+    this.persistent = false; // true cuando las imágenes se guardan en IndexedDB
   }
   init() {
     const stored = localStorage.getItem('ods_data');
     this.db = stored ? JSON.parse(stored) : { orders: [], counter: 1 };
     const storedImages = localStorage.getItem('ods_images');
     if (storedImages) {
-      this.images = new Map(JSON.parse(storedImages));
+      JSON.parse(storedImages).forEach(([k, v]) => this.images.set(k, v));
     }
+  }
+  /**
+   * Carga las imágenes guardadas en el dispositivo (IndexedDB). Es asíncrona:
+   * la app arranca de inmediato y las imágenes aparecen en cuanto terminan de cargar.
+   */
+  async initImages(factory) {
+    if (factory === undefined) factory = (typeof indexedDB !== 'undefined') ? indexedDB : null;
+    const store = new ImageStore(factory);
+    if (!(await store.open())) { this.persistent = false; return 0; }
+    const saved = await store.getAll();
+    const inMemory = [...this.images];               // agregado antes de terminar de cargar / legado
+    saved.forEach(([k, v]) => { if (!Map.prototype.has.call(this.images, k)) Map.prototype.set.call(this.images, k, v); });
+    this.images.attach(store);
+    this.persistent = true;
+    const savedIds = new Set(saved.map(([k]) => k));
+    inMemory.forEach(([k, v]) => { if (!savedIds.has(k)) this.images.set(k, v); });
+    this.pruneOrphanImages();
+    await this.images.flush();
+    return this.images.size;
+  }
+  /** Borra imágenes que ninguna orden usa y que tienen más de 24 h (evita crecimiento infinito). */
+  pruneOrphanImages(maxAgeMs = 24 * 60 * 60 * 1000) {
+    const used = new Set();
+    this.db.orders.forEach(o => Object.values(o.images || {}).forEach(ids => (ids || []).forEach(id => used.add(id))));
+    [...this.images.keys()].forEach(id => {
+      const m = /^img_(\d+)_/.exec(id);
+      if (!used.has(id) && m && Date.now() - Number(m[1]) > maxAgeMs) this.images.delete(id);
+    });
+  }
+  /** Reemplaza todas las imágenes (importación) manteniendo la persistencia. */
+  replaceImages(entries) {
+    this.images.clear();
+    (entries || []).forEach(([k, v]) => this.images.set(k, v));
   }
   save() {
     localStorage.setItem('ods_data', JSON.stringify(this.db));
